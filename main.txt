@@ -1,0 +1,310 @@
+#include <iostream>
+#include <fstream>
+#include <cmath>
+#include <cstring>
+#include "Huffman.h"
+#include "MyVec.h"
+using namespace std;
+
+
+int baseDecimal(int *bit){ 
+    int num = 0;
+
+    for(int i=8;i>0;i--)
+        num = num + bit[i-1] * pow(2,8 - i);
+
+    return num;
+}
+
+void leitura(MyVec<unsigned char> &in,int *freqs,ifstream &fin){
+    string entrada;
+    unsigned char pos;
+
+    while(!fin.eof()){
+        getline(fin,entrada);
+
+        //cout << "Tamanho da linha: " << entrada.length() << endl;
+        for(int i=0;i<entrada.length();i++){
+            pos = entrada[i];
+            freqs[pos]++;
+            in.push_back(pos);
+            //cout << "entrei: " << entrada << endl;
+        }
+
+        //cout << "entrada: " << entrada << endl;
+        in.push_back('\n');
+        freqs[10]++;
+    }
+    
+    //freqs[10]-=1;
+    //in.pop_back();
+
+
+    
+    
+    cout << "in: " << endl;
+    for(int i=0; i< in.size() ; i++)
+        cout<< in[i];
+    cout << endl;
+
+    /*
+    
+    for(int i=0; i< 256 ; i++)
+        if(freqs[i] != 0)
+            cout << i << " " << char(i) << " " << freqs[i] << endl;
+    
+    */
+}
+
+void gerarArquivo(char *name,int *freqs,HuffManTree &arvore,MyVec<bool> &comprimido){
+    ofstream out(name,ios::binary);
+
+    out.write(reinterpret_cast<char *>(freqs),sizeof(int)*256);
+
+    simbolo s[arvore.getTam()];
+    arvore.tabelaDeSimbolos(s);
+    
+    /*
+    cout << "simbolos" << endl;
+    for(int i=0;i<arvore.getTam();i++){
+        cout << s[i].letra << " ";
+        for(int j=0;j<strlen(s[i].bits);j++)
+            cout << s[i].bits[j];
+        cout << endl;
+    }
+    cout << endl;
+    */
+
+    //out.write(reinterpret_cast<char *>(s),sizeof(simbolo)*arvore.getTam());
+    
+    
+    /*
+    cout << "simbolos" << endl;
+    for(int i=0;i<arvore.getTam();i++){
+        cout << s[i].letra << " ";
+        for(int j=0;j<strlen(s[i].bits);j++)
+            cout << s[i].bits[j];
+        cout << endl;
+    }
+    cout << endl;
+    */
+
+    unsigned char mod = '0';
+    int resto = comprimido.size()%8;
+
+    if(resto != 0)
+        mod = resto + '0';
+    
+    out.write(reinterpret_cast<char *>(&mod),sizeof(unsigned char));
+    int tamanho = (comprimido.size()/8);
+    out.write(reinterpret_cast<char *>(&tamanho),sizeof(int));
+    
+
+    int bit[8] = {0};
+    int num;
+    for(int j=0;j<(comprimido.size() - resto);){
+        for(int i=0;i<8;i++){
+            if(comprimido[j] == true)
+                bit[i] = 1;
+            else
+                bit[i] = 0;
+            j++;
+        }
+        
+        num = baseDecimal(bit);
+        unsigned char s = (int)num;
+        out.write(reinterpret_cast<char *>(&s),sizeof(unsigned char));
+
+        for(int i=0;i<8;i++)
+            bit[i] = 0;
+    }
+    int j = 0;
+    if(resto != 0){
+        char b[resto];
+        for(int i=(comprimido.size() - resto);i<comprimido.size();i++){
+            if(comprimido[i] == true)
+                b[j] = '1';
+            else
+                b[j] = '0';
+            j++;
+        }
+
+        /*
+        cout << "resto" << endl;
+        for(int i=0;i<resto;i++)
+            cout << b[i] << endl;
+        */
+        
+       out.write(reinterpret_cast<char *>(b),sizeof(char)*resto); 
+
+    }
+    out.close();
+}
+
+
+int main(int argc, char **argv){
+    string argumento = argv[1];
+    ifstream fin(argv[2]);
+    
+    if(argumento == "c"){
+    
+        int freqs[256] = {0};
+        MyVec<unsigned char> in;
+        leitura(in,freqs,fin);
+        fin.close();
+
+        HuffManTree arvore(freqs);
+        MyVec<bool> comprimido;
+        arvore.comprimir(comprimido, in);
+
+        /*
+        cout << "comprimido:" << endl;
+        for(int i=0;i<comprimido.size();i++)
+            cout << comprimido[i];
+        cout << endl;
+
+        cout << "size:" << comprimido.size() << endl;
+        */
+        
+        char *name = argv[3];
+        
+        gerarArquivo(name,freqs,arvore,comprimido);
+
+
+    }
+
+    else if(argumento == "d"){
+        ifstream out(argv[2],ios::binary);
+        
+        int freqs[256] = {0};
+        out.read(reinterpret_cast<char *>(freqs),sizeof(int)*256);
+
+        /*
+        cout << "freqs" << endl;
+        for(int i=0;i<256;i++)
+            cout << freqs[i] << endl;
+        cout << endl;
+        */
+
+        HuffManTree arvore(freqs);
+        
+        simbolo s[arvore.getTam()];
+        arvore.tabelaDeSimbolos(s);
+    
+        /*
+        cout << "simbolos" << endl;
+        for(int i=0;i<arvore.getTam();i++){
+            cout << s[i].letra << " ";
+            for(int j=0;j<strlen(s[i].bits);j++)
+                cout << s[i].bits[j];
+            cout << endl;
+        }
+        cout << endl;
+        */
+
+        //cout << "tam: " << arvore.getTam() <<  endl;
+
+        //out.read(reinterpret_cast<char *>(s),sizeof(simbolo)*arvore.getTam());
+        /*
+        cout << "tam: " << arvore.getTam() <<  endl;
+        cout << "simbolos" << endl;
+        for(int i=0;i<arvore.getTam();i++){
+            cout << s[i].letra << " ";
+            for(int j=0;j<strlen(s[i].bits);j++)
+                cout << s[i].bits[j];
+            cout << endl;
+        }
+        cout << endl;
+        */
+
+        unsigned char mod;
+        out.read(reinterpret_cast<char *>(&mod),sizeof(unsigned char));
+        int resto = mod - '0';
+        char b[resto];
+
+        int tamanho ;
+        out.read(reinterpret_cast<char *>(&tamanho),sizeof(int));
+
+        //cout << "resto: " << resto << endl;
+        //cout << "mod: " << mod << endl;
+
+
+    
+        MyVec<int> numBits;
+        unsigned char st;
+        
+        while(tamanho>0){
+            out.read(reinterpret_cast<char *>(&st),sizeof(unsigned char));
+            numBits.push_back(int(st));
+            tamanho--;
+        }
+
+        /*
+        cout << "numeros" << endl;
+        for(int i=0;i<numBits.size();i++)
+            cout << numBits[i] << endl;
+        */
+
+        if(mod != '0'){
+            out.read(reinterpret_cast<char *>(b),sizeof(char)*resto);
+           
+        }
+
+        /*
+        cout << "resto" << endl;
+        for(int i=0;i<resto;i++)
+            cout << b[i] << endl;
+        
+        cout << "close" << endl;
+        */
+
+        out.close();
+
+       // cout << "comprimido:" << endl;
+        MyVec<bool> comprimido;
+        int pos = 0;
+
+        for(int i=0;i<numBits.size();i++){
+            //cout << "num:" << numBits[i] << endl;
+            for(int j=7;j>=0;j--){
+                if((numBits[i] & (1<<j)) != 0)
+                    comprimido.push_back(true);
+                else
+                    comprimido.push_back(false);
+                pos++;
+            }
+        }
+
+        for(int i=0;i<resto;i++){
+            if(b[i] == '1')
+                comprimido.push_back(true);
+            else
+                comprimido.push_back(false);
+            pos++;
+        }
+        /*
+        for(int i=0;i<comprimido.size();i++)
+            cout<< comprimido[i];
+        cout << endl;
+        */
+
+        
+        
+        //cout << "descomprimir:" << endl;
+        MyVec<unsigned char> descomprimido;
+        arvore.descomprimir(descomprimido, comprimido);
+        //for(int i=0;i<descomprimido.size();i++)
+        //    cout << descomprimido[i];
+        //cout << endl;
+
+        ofstream saida(argv[3]);
+
+        for(int i=0;i<descomprimido.size();i++)
+            saida << descomprimido[i];
+
+
+        saida.close();
+    }   
+
+    return 0;
+}
